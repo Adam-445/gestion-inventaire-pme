@@ -1,7 +1,7 @@
 import tkinter as tk
 
 from database.gestionnaire_bd import obtenir_gestionnaire
-from ui.fenetre_principale import MainWindow
+from ui.fenetre_principale import FenetrePrincipale
 
 
 def main():
@@ -11,7 +11,7 @@ def main():
 
     # Lancement de l'interface
     root = tk.Tk()
-    app = MainWindow(root)
+    app = FenetrePrincipale(root)
     root.mainloop()
 
 
