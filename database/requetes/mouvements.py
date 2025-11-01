@@ -127,8 +127,10 @@ def obtenir_mouvements_produit(produit_id: int) -> list[dict]:
         cur = connexion.cursor()
         cur.execute(
             """
-            SELECT * FROM mouvements_stock
-            WHERE produit_id = ?
+            SELECT m.*, p.nom as nom_produit
+            FROM mouvements_stock m
+            JOIN produits p ON m.produit_id = p.produit_id
+            WHERE m.produit_id = ?
             ORDER BY date_mouvement DESC
         """,
             (produit_id,),
