@@ -88,7 +88,7 @@ def creer_mouvement(
         return None
 
 
-def obtenir_tous_mouvements() -> list:
+def obtenir_tous_mouvements() -> list[dict]:
     """
     Recupere tous les mouvements de stock
 
@@ -106,13 +106,13 @@ def obtenir_tous_mouvements() -> list:
             ORDER BY m.date_mouvement DESC
         """
         )
-        return cur.fetchall()
+        return [dict(row) for row in cur.fetchall()]
     except sqlite3.Error as e:
         print(f"Erreur lors de la recuperation des mouvements: {e}")
         return []
 
 
-def obtenir_mouvements_produit(produit_id: int) -> list:
+def obtenir_mouvements_produit(produit_id: int) -> list[dict]:
     """
     Recupere l'historique des mouvements d'un produit
 
@@ -133,13 +133,13 @@ def obtenir_mouvements_produit(produit_id: int) -> list:
         """,
             (produit_id,),
         )
-        return cur.fetchall()
+        return [dict(row) for row in cur.fetchall()]
     except sqlite3.Error as e:
         print(f"Erreur lors de la recuperation des mouvements: {e}")
         return []
 
 
-def obtenir_mouvements_par_date(date_debut: str, date_fin: str) -> list:
+def obtenir_mouvements_par_date(date_debut: str, date_fin: str) -> list[dict]:
     """
     Recupere les mouvements dans une plage de dates
 
@@ -163,13 +163,13 @@ def obtenir_mouvements_par_date(date_debut: str, date_fin: str) -> list:
         """,
             (date_debut, date_fin),
         )
-        return cur.fetchall()
+        return [dict(row) for row in cur.fetchall()]
     except sqlite3.Error as e:
         print(f"Erreur lors de la recuperation des mouvements: {e}")
         return []
 
 
-def obtenir_mouvements_par_type(type_mouvement: str) -> list:
+def obtenir_mouvements_par_type(type_mouvement: str) -> list[dict]:
     """
     Recupere les mouvements d'un type specifique
 
@@ -192,7 +192,7 @@ def obtenir_mouvements_par_type(type_mouvement: str) -> list:
         """,
             (type_mouvement,),
         )
-        return cur.fetchall()
+        return [dict(row) for row in cur.fetchall()]
     except sqlite3.Error as e:
         print(f"Erreur lors de la recuperation des mouvements: {e}")
         return []
