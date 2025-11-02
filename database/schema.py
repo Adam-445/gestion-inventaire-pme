@@ -1,19 +1,14 @@
-# Définition du schéma de la base de données (SQLite)
-
-CREATE_TABLES = [
-    # TABLE 1: CATEGORIES
-    """
-    CREATE TABLE IF NOT EXISTS CATEGORIES (
+TOUTES_LES_TABLES = {
+    "categories": """
+    CREATE TABLE IF NOT EXISTS categories (
         categorie_id INTEGER PRIMARY KEY AUTOINCREMENT,
         nom TEXT NOT NULL UNIQUE,
         description TEXT,
-        date_creation TEXT
+        date_creation TEXT NOT NULL
     );
     """,
-
-    # TABLE 2: PRODUITS
-    """
-    CREATE TABLE IF NOT EXISTS PRODUITS (
+    "produits": """
+    CREATE TABLE IF NOT EXISTS produits (
         produit_id INTEGER PRIMARY KEY AUTOINCREMENT,
         nom TEXT NOT NULL,
         categorie_id INTEGER,
@@ -23,23 +18,22 @@ CREATE_TABLES = [
         stock_minimum INTEGER DEFAULT 0,
         fournisseur TEXT,
         description TEXT,
-        date_ajout TEXT ,
-        FOREIGN KEY (categorie_id) REFERENCES CATEGORIES(categorie_id)
+        date_ajout TEXT NOT NULL,
+        FOREIGN KEY (categorie_id) REFERENCES categories(categorie_id) ON DELETE SET NULL
     );
     """,
-
-    # TABLE 3: MOUVEMENTS_STOCK
-    """
-    CREATE TABLE IF NOT EXISTS MOUVEMENTS_STOCK (
+    "mouvements_stock": """
+    CREATE TABLE IF NOT EXISTS mouvements_stock (
         mouvement_id INTEGER PRIMARY KEY AUTOINCREMENT,
         produit_id INTEGER NOT NULL,
         type_mouvement TEXT NOT NULL CHECK(type_mouvement IN ('ENTREE', 'SORTIE')),
-        quantite INTEGER NOT NULL,
+        quantite INTEGER NOT NULL CHECK(quantite > 0),
         motif TEXT,
         utilisateur TEXT,
-        date_mouvement TEXT ,
+        date_mouvement TEXT NOT NULL,
         remarques TEXT,
-        FOREIGN KEY (produit_id) REFERENCES PRODUITS(produit_id)
+        FOREIGN KEY (produit_id) REFERENCES produits(produit_id) ON DELETE CASCADE
     );
-    """
-]
+    """,
+}
+

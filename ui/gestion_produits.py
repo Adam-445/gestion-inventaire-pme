@@ -1,300 +1,332 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from database.requetes import *
+from tkinter import messagebox, ttk
+from database.requetes import (
+    creer_produit,
+    modifier_produit,
+    obtenir_produit,
+    obtenir_tous_produits,
+    obtenir_toutes_categories,
+    rechercher_produits,
+    supprimer_produit,
+)
+
+# -------------------- Thème Global --------------------
+COULEUR_FOND = "#f8ffe8"
+COULEUR_BOUTON = "#94FFC4"
+COULEUR_TEXTE_BOUTON = "white"
+COULEUR_BOUTON_ACTIVE = "#23B866"
+POLICE_BOUTON = ("Bahnschrift", 12, "bold")
+MARGE_X = 15
+MARGE_Y = 10
+LARGEUR_CHAMP = 35
+LIGNE_PAIRE = "#ffffff"
+LIGNE_IMPAIRE = "#e6ffe6"
+
+
 class GestionProduitsFrame(tk.Frame):
-    def __init__(self, master=None):
-        super().__init__(master)
+    """Interface de gestion des produits."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent, bg=COULEUR_FOND)
         self.pack(fill="both", expand=True)
-        self.create_widgets()
-        self.load_products()
+        self._creer_interface()
+        self._charger_produits()
 
-    def create_widgets(self):
-        tk.Label(self, text="Gestion des Produits", font=("Arial", 16, "bold")).pack(pady=10)
+    # -------------------- Création de l'interface --------------------
+    def _creer_interface(self):
+        self._creer_titre("Gestion des Produits")
+        cadre_superieur = self._creer_cadre_superieur()
+        self._creer_zone_recherche(cadre_superieur)
+        self._creer_boutons_actions(cadre_superieur)
+        self._creer_liste_produits()
 
-        top_frame = tk.Frame(self, padx=10)
-        top_frame.pack(fill="x", padx=20)
+    def _creer_titre(self, texte):
+        tk.Label(
+            self, text=texte, font=("Bahnschrift", 16, "bold"), bg=COULEUR_FOND
+        ).pack(pady=15)
 
-        # Recherche 
-        tk.Label(top_frame, text="Recherche:").pack(side="left", padx=5)
-        self.search_var = tk.StringVar()
-        tk.Entry(top_frame, textvariable=self.search_var, width=30).pack(side="left", padx=5)
-        tk.Button(top_frame, text="Rechercher", command=lambda: print("Recherche à implémenter")).pack(side="left", padx=5)
-        
-        # Boutons d'action
-        tk.Button(top_frame, text="Ajouter Produit", command=self.open_add_dialog, bg="#008CBA", fg="white").pack(side="right", padx=5)
-        tk.Button(top_frame, text="Supprimer", command=self.confirm_delete).pack(side="right", padx=5)
-        tk.Button(top_frame, text="Modifier", command=self.open_edit_dialog).pack(side="right", padx=5)
+    def _creer_cadre_superieur(self):
+        cadre = tk.Frame(self, bg=COULEUR_FOND)
+        cadre.pack(fill="x", pady=10, padx=20)
+        return cadre
 
+    def _creer_zone_recherche(self, cadre):
+        tk.Label(cadre, text="Recherche :", bg=COULEUR_FOND).pack(side="left", padx=5)
+        self.var_recherche = tk.StringVar()
+        tk.Entry(cadre, textvariable=self.var_recherche, width=30).pack(
+            side="left", padx=5
+        )
+        self._creer_bouton(
+            cadre,
+            "Rechercher",
+            lambda: self._charger_produits(self.var_recherche.get()),
+        ).pack(side="left", padx=5)
 
-        # Tableau Treeview pour afficher les produits
-        columns = ("ID", "Nom", "Catégorie", "Code", "Prix", "Stock", "Min Stock")
-        self.tree = ttk.Treeview(self, columns=columns, show='headings')
+    def _creer_boutons_actions(self, cadre):
+        cadre_actions = tk.Frame(cadre, bg=COULEUR_FOND)
+        cadre_actions.pack(side="right")
+        self._creer_bouton(
+            cadre_actions, "Ajouter Produit", self._ouvrir_dialogue_ajout
+        ).pack(side="left", padx=5)
+        self._creer_bouton(
+            cadre_actions, "Modifier", self._ouvrir_dialogue_modification
+        ).pack(side="left", padx=5)
+        self._creer_bouton(
+            cadre_actions, "Supprimer", self._confirmer_suppression, bg="#F44336"
+        ).pack(side="left", padx=5)
 
-        # Configuration des en-têtes
-        for col in columns:
-            self.tree.heading(col, text=col)
-        self.tree.column("ID", width=40, anchor='center')
-        self.tree.column("Nom", width=150)
-        self.tree.column("Catégorie", width=100)
-        self.tree.column("Code", width=80)
-        self.tree.column("Prix", width=70, anchor='e')
-        self.tree.column("Stock", width=60, anchor='center')
-        self.tree.column("Min Stock", width=70, anchor='center')
+    def _creer_liste_produits(self):
+        colonnes = ("ID", "Nom", "Catégorie", "Code", "Prix", "Stock", "Stock Min")
+        self.table = self._configurer_table(colonnes)
+        self.table.pack(fill="both", expand=True, padx=20, pady=10)
 
-        self.tree.pack(fill="both", expand=True, padx=20, pady=10)
+    # -------------------- Composants réutilisables --------------------
+    def _creer_bouton(self, parent, texte, commande, bg=None):
+        bouton = tk.Button(
+            parent,
+            text=texte,
+            command=commande,
+            bg=bg or COULEUR_BOUTON,
+            fg=COULEUR_TEXTE_BOUTON,
+            activebackground=COULEUR_BOUTON_ACTIVE,
+            font=POLICE_BOUTON,
+            cursor="hand2",
+        )
+        # Effet survol
+        bouton.bind("<Enter>", lambda e: bouton.config(bg=COULEUR_BOUTON_ACTIVE))
+        bouton.bind("<Leave>", lambda e: bouton.config(bg=bg or COULEUR_BOUTON))
+        return bouton
 
+    def _configurer_table(self, colonnes):
+        cadre_table = tk.Frame(self, bg=COULEUR_FOND)
+        cadre_table.pack(fill="both", expand=True)
 
-    def load_products(self):
-        """Charge et affiche les produits depuis la DB dans le Treeview."""
-        for i in self.tree.get_children():
-            self.tree.delete(i)
-        
+        table = ttk.Treeview(cadre_table, columns=colonnes, show="headings")
+        for col in colonnes:
+            table.heading(col, text=col)
+            align = "center" if col in ("ID", "Stock", "Stock Min") else "w"
+            largeur = 50 if col == "ID" else 150 if col == "Nom" else 100
+            table.column(col, width=largeur, anchor=align)
+
+        table.tag_configure("pair", background=LIGNE_PAIRE)
+        table.tag_configure("impair", background=LIGNE_IMPAIRE)
+        return table
+
+    # -------------------- Chargement des données --------------------
+    def _charger_produits(self, recherche=None):
+        self.table.delete(*self.table.get_children())
         try:
-            products = get_all_products()
-            
-            for prod in products:
-                self.tree.insert("", tk.END, values=(
-                    prod['produit_id'], 
-                    prod['nom'], 
-                    prod.get('categorie_nom', 'N/A'),
-                    prod.get('code_barre', ''), 
-                    f"{prod['prix_unitaire']:.2f}",
-                    prod['stock_actuel'],
-                    prod['stock_minimum']
-                ))
-                
+            produits = (
+                rechercher_produits(recherche) if recherche else obtenir_tous_produits()
+            )
+            produits = [dict(p) for p in (produits or [])]
+
+            for i, prod in enumerate(produits):
+                etiquette = "pair" if i % 2 == 0 else "impair"
+                prix = self._formatter_prix(prod.get("prix_unitaire"))
+                self.table.insert(
+                    "",
+                    tk.END,
+                    values=(
+                        prod.get("produit_id"),
+                        prod.get("nom"),
+                        prod.get("nom_categorie", "N/A"),
+                        prod.get("code_barre", ""),
+                        prix,
+                        prod.get("stock_actuel", 0),
+                        prod.get("stock_minimum", 0),
+                    ),
+                    tags=(etiquette,),
+                )
         except Exception as e:
-            messagebox.showerror("Erreur DB", f"Impossible de charger les produits : {e}")
-    
-    def open_add_dialog(self):
-        """Ouvre un dialogue pour ajouter un nouveau produit."""
-        
+            messagebox.showerror("Erreur", f"Impossible de charger les produits : {e}")
+
+    def _formatter_prix(self, valeur):
         try:
-            categories = get_all_categories() 
-        except Exception as e:
-            messagebox.showerror("Erreur DB", f"Impossible de charger les catégories pour l'ajout : {e}")
+            return f"{float(valeur or 0):.2f}"
+        except Exception:
+            return "0.00"
+
+    # -------------------- Gestion des produits --------------------
+    def _get_id_selectionne(self):
+        element = self.table.focus()
+        if not element:
+            messagebox.showwarning("Attention", "Veuillez sélectionner un produit.")
+            return None
+        try:
+            return int(self.table.item(element, "values")[0])
+        except Exception:
+            messagebox.showwarning("Erreur", "ID produit invalide.")
+            return None
+
+    def _confirmer_suppression(self):
+        produit_id = self._get_id_selectionne()
+        if produit_id is None:
             return
-            
-        if not categories:
-            messagebox.showwarning("Attention", "Veuillez créer des catégories avant d'ajouter des produits.")
-            return
-
-        dialog = tk.Toplevel(self.master)
-        dialog.title("Ajouter un nouveau produit")
-        dialog.transient(self.master)
-
-        form_frame = tk.Frame(dialog, padx=10, pady=10)
-        form_frame.pack(padx=10, pady=10)
-
-        vars_prod = {
-            'nom': tk.StringVar(),
-            'code_barre': tk.StringVar(),
-            'prix_unitaire': tk.StringVar(value="0.00"),
-            'stock_minimum': tk.StringVar(value="0"),
-            'fournisseur': tk.StringVar(),
-            'description': tk.StringVar(),
-            'categorie_nom': tk.StringVar(),
-            'categorie_id': None
-        }
-        
-        category_names = [cat['nom'] for cat in categories]
-        category_map = {cat['nom']: cat['categorie_id'] for cat in categories}
-
-        fields = [
-            ("Nom du Produit:", 'nom', 0),
-            ("Code Barre:", 'code_barre', 1),
-            ("Prix Unitaire:", 'prix_unitaire', 2),
-            ("Stock Minimum:", 'stock_minimum', 3),
-            ("Fournisseur:", 'fournisseur', 4),
-            ("Description:", 'description', 5)
-        ]
-
-        for i, (label_text, var_name, row) in enumerate(fields):
-            tk.Label(form_frame, text=label_text).grid(row=row, column=0, sticky="w", padx=5, pady=2)
-            tk.Entry(form_frame, textvariable=vars_prod[var_name], width=35).grid(row=row, column=1, padx=5, pady=2)
-        
-        tk.Label(form_frame, text="Catégorie:").grid(row=6, column=0, sticky="w", padx=5, pady=2)
-        category_combo = ttk.Combobox(form_frame, textvariable=vars_prod['categorie_nom'], values=category_names, width=33, state="readonly")
-        category_combo.grid(row=6, column=1, padx=5, pady=2)
-        
-        if category_names:
-            category_combo.set(category_names[0])
-            vars_prod['categorie_id'] = category_map[category_names[0]]
-
-        def on_category_select(event):
-            selected_name = vars_prod['categorie_nom'].get()
-            vars_prod['categorie_id'] = category_map[selected_name]
-
-        category_combo.bind("<<ComboboxSelected>>", on_category_select)
-
-        def save_product():
-            nom = vars_prod['nom'].get().strip()
-            prix = vars_prod['prix_unitaire'].get()
-            stock_min = vars_prod['stock_minimum'].get()
-            
-            if not nom or vars_prod['categorie_id'] is None:
-                messagebox.showwarning("Validation", "Le Nom et la Catégorie sont obligatoires.")
-                return
-            
+        nom = self.table.item(self.table.focus(), "values")[1]
+        if messagebox.askyesno(
+            "Confirmation", f"Supprimer '{nom}' (ID: {produit_id}) ?"
+        ):
             try:
-                prix_float = float(prix)
-                stock_min_int = int(stock_min)
-            except ValueError:
-                messagebox.showwarning("Validation", "Le Prix et le Stock Min. doivent être des nombres valides.")
-                return
-
-            product_data = {
-                'nom': nom,
-                'categorie_id': vars_prod['categorie_id'],
-                'code_barre': vars_prod['code_barre'].get(),
-                'prix_unitaire': prix_float,
-                'stock_minimum': stock_min_int,
-                'fournisseur': vars_prod['fournisseur'].get(),
-                'description': vars_prod['description'].get()
-            }
-            
-            try:
-                create_product(product_data)
-                messagebox.showinfo("Succès", f"Produit '{nom}' ajouté avec succès.")
-                self.load_products()
-                dialog.destroy()
+                if supprimer_produit(produit_id):
+                    messagebox.showinfo("Succès", "Produit supprimé avec succès.")
+                    self._charger_produits()
+                else:
+                    messagebox.showerror("Erreur", "Suppression impossible.")
             except Exception as e:
-                messagebox.showerror("Erreur DB", f"Erreur lors de l'ajout : {e}")
+                messagebox.showerror("Erreur", f"{e}")
 
-        tk.Button(dialog, text="Ajouter et Fermer", command=save_product, bg="#4CAF50", fg="white").pack(pady=10)
-        
-        dialog.grab_set()
-        self.master.wait_window(dialog)
+    # -------------------- Dialogues (Ajout / Modification) --------------------
+    def _ouvrir_dialogue_ajout(self):
+        self._ouvrir_dialogue_produit("Ajouter un Produit")
 
-    def get_selected_product_id(self):
-        """Récupère l'ID du produit sélectionné."""
-        selected_item = self.tree.focus()
-        if not selected_item:
-            messagebox.showwarning("Sélection requise", "Veuillez sélectionner un produit.")
-            return None
+    def _ouvrir_dialogue_modification(self):
+        produit_id = self._get_id_selectionne()
+        if produit_id:
+            self._ouvrir_dialogue_produit("Modifier un Produit", produit_id)
 
-        return int(self.tree.item(selected_item, 'values')[0]) 
+    def _ouvrir_dialogue_produit(self, titre, produit_id=None):
+        fenetre = tk.Toplevel(self.master)
+        fenetre.title(titre)
+        fenetre.transient(self.master)
+        fenetre.grab_set()
 
-    def confirm_delete(self):
-        """Supprime le produit sélectionné."""
-        product_id = self.get_selected_product_id()
-        if product_id is None:
-            return
+        cadre_formulaire = tk.Frame(fenetre, padx=MARGE_X, pady=MARGE_Y)
+        cadre_formulaire.pack(padx=MARGE_X, pady=MARGE_Y)
 
-        product_name = self.tree.item(self.tree.focus(), 'values')[1]
+        categories, noms_categories, correspondance = self._charger_categories()
+        vars_prod = self._creer_variables_produit(produit_id)
 
-        if messagebox.askyesno("Confirmation de Suppression", 
-                               f"Êtes-vous sûr de vouloir supprimer le produit '{product_name}' (ID: {product_id})?"):
-            try:
-                delete_product(product_id)
-                messagebox.showinfo("Succès", f"Produit '{product_name}' supprimé.")
-                self.load_products()
-            except Exception as e:
-                messagebox.showerror("Erreur", f"Impossible de supprimer le produit : {e}")
+        self._creer_champs_formulaire(cadre_formulaire, vars_prod)
+        self._creer_liste_categories(
+            cadre_formulaire, noms_categories, correspondance, vars_prod
+        )
+        self._creer_bouton_sauvegarde(cadre_formulaire, produit_id, vars_prod, fenetre)
 
-
-    def get_selected_product_details(self):
-        """Récupère les détails complets du produit sélectionné via la DB."""
-        selected_item = self.tree.focus()
-        if not selected_item:
-            messagebox.showwarning("Sélection requise", "Veuillez sélectionner un produit à modifier.")
-            return None
-        
-        values = self.tree.item(selected_item, 'values')
-        product_id = int(values[0])
-        category_name = values[2] 
-        
+    # -------------------- Sous-fonctions pour le dialogue --------------------
+    def _charger_categories(self):
         try:
-            full_data = get_product_by_id(product_id) 
-            
-            full_data['category_name'] = category_name 
-            return full_data
-        except Exception as e:
-            messagebox.showerror("Erreur", f"Impossible de charger les détails du produit : {e}")
-            return None
+            categories = obtenir_toutes_categories() or []
+            categories = [dict(c) for c in categories]
+        except Exception:
+            categories = []
+        noms = [c["nom"] for c in categories]
+        correspondance = {c["nom"]: c["categorie_id"] for c in categories}
+        return categories, noms, correspondance
 
-    def open_edit_dialog(self):
-        selected_prod = self.get_selected_product_details()
-        if not selected_prod:
-            return
-
-        try:
-            categories = get_all_categories() 
-        except Exception: return
-
-        category_names = [cat['nom'] for cat in categories]
-        category_map = {cat['nom']: cat['categorie_id'] for cat in categories}
-
-        dialog = tk.Toplevel(self.master)
-        dialog.title(f"Modifier Produit: {selected_prod['nom']}")
-        dialog.transient(self.master)
-        form_frame = tk.Frame(dialog, padx=10, pady=10)
-        form_frame.pack(padx=10, pady=10)
-
+    def _creer_variables_produit(self, produit_id):
         vars_prod = {
-            'nom': tk.StringVar(value=selected_prod['nom']),
-            'code_barre': tk.StringVar(value=selected_prod['code_barre'] or ""),
-            'prix_unitaire': tk.StringVar(value=f"{selected_prod['prix_unitaire']:.2f}"),
-            'stock_actuel': tk.StringVar(value=str(selected_prod['stock_actuel'])), 
-            'stock_minimum': tk.StringVar(value=str(selected_prod['stock_minimum'])),
-            'fournisseur': tk.StringVar(value=selected_prod['fournisseur'] or ""),
-            'description': tk.StringVar(value=selected_prod['description'] or ""),
-            'categorie_nom': tk.StringVar(value=selected_prod['category_name']),
-            'categorie_id': selected_prod['categorie_id']
+            "nom": tk.StringVar(),
+            "code_barre": tk.StringVar(),
+            "prix_unitaire": tk.StringVar(value="0.00"),
+            "stock_actuel": tk.StringVar(value="0"),
+            "stock_minimum": tk.StringVar(value="0"),
+            "fournisseur": tk.StringVar(),
+            "description": tk.StringVar(),
+            "categorie_nom": tk.StringVar(),
+            "categorie_id": None,
         }
 
-        fields = [
-            ("Nom du Produit:", 'nom', 0),
-            ("Code Barre:", 'code_barre', 1),
-            ("Prix Unitaire:", 'prix_unitaire', 2),
-            ("Stock Actuel:", 'stock_actuel', 3), 
-            ("Stock Minimum:", 'stock_minimum', 4),
-            ("Fournisseur:", 'fournisseur', 5),
-            ("Description:", 'description', 6)
+        if produit_id:
+            data = obtenir_produit(produit_id)
+            if data:
+                data = dict(data)
+                for cle, val in data.items():
+                    if cle in vars_prod and isinstance(vars_prod[cle], tk.StringVar):
+                        vars_prod[cle].set(val if val is not None else "")
+                vars_prod["categorie_id"] = data.get("categorie_id")
+        return vars_prod
+
+    def _creer_champs_formulaire(self, parent, vars_prod):
+        champs = [
+            ("Nom du Produit :", "nom"),
+            ("Code Barre :", "code_barre"),
+            ("Prix Unitaire :", "prix_unitaire"),
+            ("Stock Actuel :", "stock_actuel"),
+            ("Stock Minimum :", "stock_minimum"),
+            ("Fournisseur :", "fournisseur"),
+            ("Description :", "description"),
         ]
+        for i, (label, cle) in enumerate(champs):
+            tk.Label(parent, text=label).grid(
+                row=i, column=0, sticky="w", padx=5, pady=2
+            )
+            tk.Entry(parent, textvariable=vars_prod[cle], width=LARGEUR_CHAMP).grid(
+                row=i, column=1, padx=5, pady=2
+            )
 
-        for i, (label_text, var_name, row) in enumerate(fields):
-            tk.Label(form_frame, text=label_text).grid(row=row, column=0, sticky="w", padx=5, pady=2)
-            tk.Entry(form_frame, textvariable=vars_prod[var_name], width=35).grid(row=row, column=1, padx=5, pady=2)
+    def _creer_liste_categories(self, parent, noms, correspondance, vars_prod):
+        tk.Label(parent, text="Catégorie :").grid(
+            row=7, column=0, sticky="w", padx=5, pady=2
+        )
+        combo = ttk.Combobox(
+            parent,
+            textvariable=vars_prod["categorie_nom"],
+            values=noms,
+            width=LARGEUR_CHAMP - 2,
+            state="readonly",
+        )
+        combo.grid(row=7, column=1, padx=5, pady=2)
 
-        tk.Label(form_frame, text="Catégorie:").grid(row=7, column=0, sticky="w", padx=5, pady=2)
-        category_combo = ttk.Combobox(form_frame, textvariable=vars_prod['categorie_nom'], values=category_names, width=33, state="readonly")
-        category_combo.grid(row=7, column=1, padx=5, pady=2)
+        if noms and not vars_prod["categorie_nom"].get():
+            combo.set(noms[0])
+            vars_prod["categorie_id"] = correspondance[noms[0]]
 
-        category_combo.bind("<<ComboboxSelected>>", 
-                            lambda event: vars_prod.update({'categorie_id': category_map[vars_prod['categorie_nom'].get()]}))
+        combo.bind(
+            "<<ComboboxSelected>>",
+            lambda e: vars_prod.update(
+                {"categorie_id": correspondance[vars_prod["categorie_nom"].get()]}
+            ),
+        )
 
-
-        def save_changes():
-
-            try:
-                new_data = {
-                    'nom': vars_prod['nom'].get().strip(),
-                    'categorie_id': vars_prod['categorie_id'],
-                    'code_barre': vars_prod['code_barre'].get(),
-                    'prix_unitaire': float(vars_prod['prix_unitaire'].get()),
-                    'stock_actuel': int(vars_prod['stock_actuel'].get()), 
-                    'stock_minimum': int(vars_prod['stock_minimum'].get()),
-                    'fournisseur': vars_prod['fournisseur'].get(),
-                    'description': vars_prod['description'].get()
-                }
-            except ValueError:
-                messagebox.showwarning("Validation", "Veuillez vérifier les champs numériques (Prix, Stock Actuel, Stock Min.).")
+    def _creer_bouton_sauvegarde(self, parent, produit_id, vars_prod, fenetre):
+        def sauvegarder():
+            if not self._valider_champs(vars_prod):
                 return
-
-            if not new_data['nom']:
-                messagebox.showwarning("Validation", "Le Nom ne peut pas être vide.")
-                return
-
+            donnees = self._extraire_donnees(vars_prod)
             try:
-
-                update_product(selected_prod['produit_id'], **new_data) 
-                messagebox.showinfo("Succès", "Produit mis à jour.")
-                self.load_products() 
-                dialog.destroy()
+                if produit_id:
+                    modifier_produit(produit_id, **donnees)
+                    messagebox.showinfo("Succès", "Produit mis à jour.")
+                else:
+                    creer_produit(**donnees)
+                    messagebox.showinfo("Succès", "Produit ajouté.")
+                self._charger_produits()
+                fenetre.destroy()
             except Exception as e:
-                messagebox.showerror("Erreur", f"Erreur de modification : {e}")
+                messagebox.showerror("Erreur", f"Erreur : {e}")
 
-        tk.Button(dialog, text="Sauvegarder", command=save_changes, bg="#FFC107", fg="black").grid(row=8, column=1, pady=10)
-        dialog.grab_set()
-        self.master.wait_window(dialog)
+        tk.Button(
+            parent,
+            text="Sauvegarder",
+            command=sauvegarder,
+            bg=COULEUR_BOUTON,
+            fg=COULEUR_TEXTE_BOUTON,
+        ).grid(row=8, column=1, pady=10)
+
+    def _valider_champs(self, vars_prod):
+        if not vars_prod["nom"].get().strip() or not vars_prod["categorie_id"]:
+            messagebox.showwarning("Validation", "Nom et Catégorie requis.")
+            return False
+        try:
+            float(vars_prod["prix_unitaire"].get())
+            int(vars_prod["stock_actuel"].get())
+            int(vars_prod["stock_minimum"].get())
+        except ValueError:
+            messagebox.showwarning(
+                "Validation", "Vérifiez les champs numériques (Prix, Stock)."
+            )
+            return False
+        return True
+
+    def _extraire_donnees(self, vars_prod):
+        return {
+            "nom": vars_prod["nom"].get().strip(),
+            "categorie_id": vars_prod["categorie_id"],
+            "code_barre": vars_prod["code_barre"].get(),
+            "prix_unitaire": float(vars_prod["prix_unitaire"].get()),
+            "stock_actuel": int(vars_prod["stock_actuel"].get()),
+            "stock_minimum": int(vars_prod["stock_minimum"].get()),
+            "fournisseur": vars_prod["fournisseur"].get(),
+            "description": vars_prod["description"].get(),
+        }
