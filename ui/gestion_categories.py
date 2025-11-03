@@ -8,8 +8,8 @@ from database.requetes import (
 )
 
 # ---------- Variables Globales de Thème ----------
-COULEUR_FOND = "#caf084"  # Couleur de fond principale
-COULEUR_TEXTE = "white"  # Couleur du texte des titres et libellés
+COULEUR_FOND = "#f8ffe8"  # Couleur de fond principale
+COULEUR_TEXTE = "black"  # Couleur du texte des titres et libellés
 COULEUR_BOUTON = "#94FFC4"  # Vert clair
 COULEUR_SURVOL = "#23B866"  # Vert foncé (survol / actif)
 COULEUR_SUPPR = "#F44336"  # Rouge suppression
